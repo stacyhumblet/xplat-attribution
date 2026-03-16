@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cross-Platform Attribution</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Flash prevention ──────────────────────────────────── */
+    html { background: #000; }
+    html[data-theme="light"] { background: #f0f4ff; }
+
+    /* ── Design tokens ─────────────────────────────────────── */
+    :root {
+      --bg:       #080e1c;
+      --surface:  rgba(255,255,255,.055);
+      --surface2: rgba(255,255,255,.03);
+      --border:   rgba(255,255,255,.08);
+      --text:     #e7ecff;
+      --muted:    #a7b1d6;
+      --primary:  #5a9fc2;
+      --primary2: #3d7fa0;
+      --accent:   #8b5cf6;
+      --good:     #10b981;
+      --warn:     #f59e0b;
+      --bad:      #ef4444;
+    }
+    [data-theme="light"] {
+      --bg:       #f0f4ff;
+      --surface:  rgba(255,255,255,.92);
+      --surface2: rgba(255,255,255,.75);
+      --border:   rgba(0,0,0,.09);
+      --text:     #1a2142;
+      --muted:    #5c6690;
+      --primary:  #1a7aaa;
+      --primary2: #0f5a80;
+      --accent:   #7c3aed;
+    }
+
+    /* ── Colour schemes ─────────────────────────────────────── */
+    html.scheme-creator { --primary:#a855f7; --primary2:#7c3aed; --accent:#06b6d4; }
+    html.scheme-slate   { --primary:#78909c; --primary2:#546e7a; --accent:#90a4ae; }
+    html.scheme-ocean   { --primary:#0ea5e9; --primary2:#0284c7; --accent:#22d3ee; }
+    html.scheme-sunset  { --primary:#f97316; --primary2:#ea580c; --accent:#ec4899; }
+    html.scheme-forest  { --primary:#10b981; --primary2:#059669; --accent:#34d399; }
+    html.scheme-rose    { --primary:#e879f9; --primary2:#d946ef; --accent:#a855f7; }
+    html.scheme-creator[data-theme="light"] { --primary:#7c3aed; --primary2:#6d28d9; --accent:#0284c7; }
+    html.scheme-slate[data-theme="light"]   { --primary:#546e7a; --primary2:#37474f; --accent:#607d8b; }
+    html.scheme-ocean[data-theme="light"]   { --primary:#0284c7; --primary2:#0369a1; --accent:#0ea5e9; }
+    html.scheme-sunset[data-theme="light"]  { --primary:#ea580c; --primary2:#c2410c; --accent:#db2777; }
+    html.scheme-forest[data-theme="light"]  { --primary:#059669; --primary2:#047857; --accent:#10b981; }
+    html.scheme-rose[data-theme="light"]    { --primary:#d946ef; --primary2:#a21caf; --accent:#9333ea; }
+
+    /* ── Scheme pill bar ────────────────────────────────────── */
+    .scheme-pills { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .scheme-pill {
+      display:flex; align-items:center; gap:6px;
+      background:transparent; border:1.5px solid var(--border);
+      border-radius:100px; padding:6px 13px;
+      font-size:12px; font-weight:600; color:var(--muted);
+      cursor:pointer; transition:border-color .18s,color .18s,background .18s;
+      white-space:nowrap;
+    }
+    .scheme-pill:hover { border-color:var(--primary); color:var(--text); }
+    .scheme-pill.active { background:rgba(255,255,255,.07); border-color:var(--primary); color:var(--text); }
+    [data-theme="light"] .scheme-pill.active { background:rgba(0,0,0,.05); }
+    .scheme-swatch { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 15% 0%, rgba(90,159,194,.18), transparent 60%),
+        radial-gradient(900px  600px at 85% 5%, rgba(139,92,246,.12), transparent 55%),
+        var(--bg);
+      color:var(--text); min-height:100vh;
+    }
+    [data-theme="light"] body {
+      background:
+        radial-gradient(1200px 700px at 15% 0%, rgba(26,122,170,.10), transparent 60%),
+        radial-gradient(900px  600px at 85% 5%, rgba(124,58,237,.07), transparent 55%),
+        var(--bg);
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────── */
+    .topbar {
+      display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+      padding:14px 24px; border-bottom:1px solid var(--border);
+      background:rgba(8,14,28,.22); backdrop-filter:blur(14px);
+      position:sticky; top:0; z-index:100;
+    }
+    [data-theme="light"] .topbar { background:rgba(240,244,255,.88); border-bottom-color:rgba(0,0,0,.08); }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand-icon { font-size:26px; line-height:1; }
+    .brand-title { font-size:15px; font-weight:700; color:var(--text); }
+    .brand-subtitle { font-size:11px; color:var(--muted); margin-top:1px; }
+    .topbar-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+
+    /* ── Theme toggle ───────────────────────────────────────── */
+    .theme-toggle { display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .toggle-track {
+      width:34px; height:18px; background:var(--surface);
+      border:1px solid var(--border); border-radius:100px;
+      position:relative; transition:background .2s;
+    }
+    .toggle-thumb {
+      position:absolute; top:2px; left:2px;
+      width:12px; height:12px; border-radius:50%;
+      background:var(--primary); transition:transform .2s, background .2s;
+    }
+    [data-theme="light"] .toggle-thumb { transform:translateX(16px); }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container { max-width:1400px; margin:0 auto; padding:24px 20px; }
+    .section-label {
+      font-size:10px; font-weight:700; letter-spacing:.8px;
+      text-transform:uppercase; color:var(--muted); margin:20px 0 10px;
+    }
+    .section-label:first-child { margin-top:0; }
+    .card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:16px; padding:20px;
+    }
+    .card-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
+    .card-subtitle { font-size:11px; color:var(--muted); margin-bottom:4px; }
+
+    /* ── Filters ────────────────────────────────────────────── */
+    .filters-grid {
+      display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+    }
+    .field { display:flex; flex-direction:column; gap:4px; min-width:130px; flex:1; }
+    .field label { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
+    select {
+      background:rgba(14,22,52,.92); color:var(--text);
+      border:1px solid var(--border); border-radius:8px;
+      padding:8px 10px; font-size:13px; color-scheme:dark;
+      cursor:pointer; transition:border-color .15s;
+    }
+    select:hover, select:focus { border-color:var(--primary); outline:none; }
+    [data-theme="light"] select { background:#ffffff; color:#1a2142; color-scheme:light; }
+    .reset-btn {
+      background:transparent; border:1px solid var(--border);
+      color:var(--muted); border-radius:8px; padding:8px 16px;
+      font-size:12px; font-weight:600; cursor:pointer;
+      transition:border-color .15s, color .15s; white-space:nowrap; align-self:flex-end;
+    }
+    .reset-btn:hover { border-color:var(--primary); color:var(--text); }
+
+    /* ── KPI pills ──────────────────────────────────────────── */
+    .kpi-row {
+      display:grid; gap:12px;
+      grid-template-columns:repeat(6,1fr);
+    }
+    @media (max-width:1100px) { .kpi-row { grid-template-columns:repeat(3,1fr); } }
+    @media (max-width:600px)  { .kpi-row { grid-template-columns:repeat(2,1fr); } }
+    .kpi-pill {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:14px; padding:16px;
+    }
+    .kpi-label { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+    .kpi-value { font-size:22px; font-weight:800; line-height:1; }
+    .kpi-sub   { font-size:11px; color:var(--muted); margin-top:4px; }
+    .kpi-pill .kpi-value       { color:var(--primary); }
+    .kpi-pill.highlight        { border-color:var(--primary); }
+    .kpi-pill.highlight .kpi-value { color:var(--primary); }
+    .kpi-pill.accent           { border-color:var(--accent); }
+    .kpi-pill.accent .kpi-value { color:var(--accent); }
+
+    /* ── Platform cards ─────────────────────────────────────── */
+    .platform-cards {
+      display:grid; gap:12px;
+      grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+    }
+    .platform-card {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:14px; padding:16px; position:relative; overflow:hidden;
+    }
+    .platform-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    }
+    .platform-card-header {
+      display:flex; align-items:center; gap:8px; margin-bottom:12px;
+    }
+    .platform-icon { font-size:18px; line-height:1; }
+    .platform-name { font-size:12px; font-weight:700; text-transform:capitalize; color:var(--text); }
+    .platform-stat { margin-bottom:8px; }
+    .platform-stat-label { font-size:10px; color:var(--muted); font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+    .platform-stat-value { font-size:16px; font-weight:800; color:var(--text); line-height:1.2; }
+    .platform-stat.primary .platform-stat-value { color:var(--primary); font-size:18px; }
+    .platform-cvr {
+      display:inline-block; font-size:10px; font-weight:700;
+      padding:2px 8px; border-radius:100px; margin-top:6px;
+      background:rgba(255,255,255,.07); color:var(--accent);
+      border:1px solid var(--border);
+    }
+
+    /* ── Chart layout ───────────────────────────────────────── */
+    .chart-row-3-2 { display:grid; grid-template-columns:3fr 2fr; gap:16px; }
+    .chart-row-1-1 { display:grid; grid-template-columns:1fr 1fr;  gap:16px; }
+    @media (max-width:900px) {
+      .chart-row-3-2, .chart-row-1-1 { grid-template-columns:1fr; }
+    }
+    .chart-wrap    { position:relative; height:260px; margin-top:14px; }
+    .chart-wrap-sm { position:relative; height:240px; margin-top:14px; }
+    .chart-wrap-lg { position:relative; height:300px; margin-top:14px; }
+
+    /* ── Loading skeleton ───────────────────────────────────── */
+    #dashboard { display:none; }
+    .skel {
+      background:linear-gradient(90deg, var(--surface) 25%, rgba(255,255,255,.09) 50%, var(--surface) 75%);
+      background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:8px;
+    }
+    [data-theme="light"] .skel {
+      background:linear-gradient(90deg, rgba(0,0,0,.06) 25%, rgba(0,0,0,.03) 50%, rgba(0,0,0,.06) 75%);
+      background-size:400% 100%; animation:shimmer 1.4s ease infinite;
+    }
+    @keyframes shimmer { 0%{background-position:100% 50%} 100%{background-position:-100% 50%} }
+    .skel-pill {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:14px; padding:18px 16px; display:flex; flex-direction:column; gap:8px;
+    }
+    #error-msg {
+      display:none; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3);
+      color:#fca5a5; padding:16px 20px; border-radius:12px; font-size:13px; margin:20px 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🔀</div>
+    <div class="brand-text">
+      <div class="brand-title">Cross-Platform Attribution</div>
+      <div class="brand-subtitle">Sessions · Conversions · Revenue · Northwind Consulting</div>
+    </div>
+  </div>
+  <div class="scheme-pills">
+    <button class="scheme-pill active" data-scheme="creator" onclick="setScheme('creator',this)">
+      <span class="scheme-swatch" style="background:linear-gradient(135deg,#a855f7,#06b6d4)"></span>Creator
+    </button>
+    <button class="scheme-pill" data-scheme="slate" onclick="setScheme('slate',this)">
+      <span class="scheme-swatch" style="background:linear-gradient(135deg,#94a3b8,#64748b)"></span>Slate
+    </button>
+    <button class="scheme-pill" data-scheme="ocean" onclick="setScheme('ocean',this)">
+      <span class="scheme-swatch" style="background:linear-gradient(135deg,#0ea5e9,#22d3ee)"></span>Ocean
+    </button>
+    <button class="scheme-pill" data-scheme="sunset" onclick="setScheme('sunset',this)">
+      <span class="scheme-swatch" style="background:linear-gradient(135deg,#f97316,#ec4899)"></span>Sunset
+    </button>
+    <button class="scheme-pill" data-scheme="forest" onclick="setScheme('forest',this)">
+      <span class="scheme-swatch" style="background:linear-gradient(135deg,#10b981,#34d399)"></span>Forest
+    </button>
+    <button class="scheme-pill" data-scheme="rose" onclick="setScheme('rose',this)">
+      <span class="scheme-swatch" style="background:linear-gradient(135deg,#e879f9,#a855f7)"></span>Rose
+    </button>
+  </div>
+  <div class="topbar-right">
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark">
+      <span id="theme-label-dark">🌙</span>
+      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+      <span id="theme-label-light">☀️</span>
+    </div>
+  </div>
+</div>
+
+<!-- Loading skeleton -->
+<div id="loading">
+  <div class="container">
+    <div class="card" style="margin-bottom:16px">
+      <div class="skel" style="height:14px;width:60px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="skel" style="height:38px;width:130px;border-radius:8px"></div>
+        <div class="skel" style="height:38px;width:130px;border-radius:8px"></div>
+        <div class="skel" style="height:38px;width:130px;border-radius:8px"></div>
+        <div class="skel" style="height:38px;width:130px;border-radius:8px"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px">
+      <div class="skel-pill"><div class="skel" style="height:12px;width:60px"></div><div class="skel" style="height:26px;width:90px"></div></div>
+      <div class="skel-pill"><div class="skel" style="height:12px;width:60px"></div><div class="skel" style="height:26px;width:90px"></div></div>
+      <div class="skel-pill"><div class="skel" style="height:12px;width:60px"></div><div class="skel" style="height:26px;width:90px"></div></div>
+      <div class="skel-pill"><div class="skel" style="height:12px;width:60px"></div><div class="skel" style="height:26px;width:90px"></div></div>
+      <div class="skel-pill"><div class="skel" style="height:12px;width:60px"></div><div class="skel" style="height:26px;width:90px"></div></div>
+      <div class="skel-pill"><div class="skel" style="height:12px;width:60px"></div><div class="skel" style="height:26px;width:90px"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+      <div class="card"><div class="skel" style="height:110px"></div></div>
+      <div class="card"><div class="skel" style="height:110px"></div></div>
+      <div class="card"><div class="skel" style="height:110px"></div></div>
+      <div class="card"><div class="skel" style="height:110px"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px">
+      <div class="card"><div class="skel" style="height:280px"></div></div>
+      <div class="card"><div class="skel" style="height:280px"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card"><div class="skel" style="height:240px"></div></div>
+      <div class="card"><div class="skel" style="height:240px"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Error -->
+<div class="container"><div id="error-msg"></div></div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <div class="container">
+
+    <!-- Filters -->
+    <div class="card">
+      <div class="card-title">Filters</div>
+      <div class="filters-grid">
+        <div class="field">
+          <label>Year</label>
+          <select id="f-year" onchange="applyFilters()"><option value="">All Years</option></select>
+        </div>
+        <div class="field">
+          <label>Month</label>
+          <select id="f-month" onchange="applyFilters()"><option value="">All Months</option></select>
+        </div>
+        <div class="field">
+          <label>Platform</label>
+          <select id="f-platform" onchange="applyFilters()"><option value="">All Platforms</option></select>
+        </div>
+        <div class="field">
+          <label>Campaign</label>
+          <select id="f-campaign" onchange="applyFilters()"><option value="">All Campaigns</option></select>
+        </div>
+        <button class="reset-btn" onclick="resetFilters()">↺ Reset</button>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="section-label">Performance Overview</div>
+    <div class="kpi-row">
+      <div class="kpi-pill highlight">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="kpi-revenue">—</div>
+        <div class="kpi-sub">All platforms</div>
+      </div>
+      <div class="kpi-pill">
+        <div class="kpi-label">Total Sessions</div>
+        <div class="kpi-value" id="kpi-sessions">—</div>
+        <div class="kpi-sub">Unique visits</div>
+      </div>
+      <div class="kpi-pill">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value" id="kpi-orders">—</div>
+        <div class="kpi-sub">Conversions</div>
+      </div>
+      <div class="kpi-pill accent">
+        <div class="kpi-label">Avg Conv. Rate</div>
+        <div class="kpi-value" id="kpi-cvr">—</div>
+        <div class="kpi-sub">Sessions → orders</div>
+      </div>
+      <div class="kpi-pill">
+        <div class="kpi-label">Avg Order Value</div>
+        <div class="kpi-value" id="kpi-aov">—</div>
+        <div class="kpi-sub">Revenue / orders</div>
+      </div>
+      <div class="kpi-pill accent">
+        <div class="kpi-label">Top Platform</div>
+        <div class="kpi-value" id="kpi-top" style="font-size:15px;text-transform:capitalize">—</div>
+        <div class="kpi-sub" id="kpi-top-sub">By revenue</div>
+      </div>
+    </div>
+
+    <!-- Platform Cards -->
+    <div class="section-label">Platform Breakdown</div>
+    <div class="platform-cards" id="platform-cards"></div>
+
+    <!-- Revenue Trend + Revenue Mix -->
+    <div class="section-label">Revenue Trends</div>
+    <div class="chart-row-3-2">
+      <div class="card">
+        <div class="card-title">Revenue by Platform Over Time</div>
+        <div class="card-subtitle">Monthly revenue contribution per channel</div>
+        <div class="chart-wrap-lg"><canvas id="chart-trend"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Revenue Mix</div>
+        <div class="card-subtitle">Share of total revenue by platform</div>
+        <div class="chart-wrap"><canvas id="chart-mix"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Conv Rate + AOV by Platform -->
+    <div class="section-label">Platform Efficiency</div>
+    <div class="chart-row-1-1">
+      <div class="card">
+        <div class="card-title">Conversion Rate by Platform</div>
+        <div class="card-subtitle">Which channels convert sessions to orders best</div>
+        <div class="chart-wrap-sm"><canvas id="chart-cvr"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Avg Order Value by Platform</div>
+        <div class="card-subtitle">Which channels drive higher-value purchases</div>
+        <div class="chart-wrap-sm"><canvas id="chart-aov"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Top Campaigns -->
+    <div class="section-label">Campaign Intelligence</div>
+    <div class="card">
+      <div class="card-title">Top Campaigns by Revenue</div>
+      <div class="card-subtitle">Cross-platform campaigns ranked by attributed revenue</div>
+      <div class="chart-wrap"><canvas id="chart-campaigns"></canvas></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const STORAGE_KEY    = 'xplat-theme';
+const DATA_CACHE_KEY = 'xplat-data-cache';
+const DATA_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// ── State ────────────────────────────────────────────────────────────────────
+let allRows = [];
+let charts  = {};
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) _applyTheme(saved);
+  const savedScheme = localStorage.getItem('xplat-scheme') || 'creator';
+  setScheme(savedScheme);
+
+  const raw = localStorage.getItem(DATA_CACHE_KEY);
+  if (raw) {
+    try {
+      const { ts, data } = JSON.parse(raw);
+      if (Date.now() - ts < DATA_CACHE_TTL) {
+        onData(data);
+        refreshInBackground();
+        return;
+      }
+    } catch(e) {}
+  }
+
+  google.script.run
+    .withSuccessHandler(data => { saveCache(data); onData(data); })
+    .withFailureHandler(onError)
+    .getCrossPlatformData();
+});
+
+function saveCache(data) {
+  try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+}
+
+function refreshInBackground() {
+  google.script.run
+    .withSuccessHandler(data => { saveCache(data); onData(data); })
+    .withFailureHandler(() => {})
+    .getCrossPlatformData();
+}
+
+function onData(data) {
+  if (data.error) { onError(new Error(data.error)); return; }
+  allRows = data.rows || [];
+  populateFilters(data.fo);
+  render();
+  document.getElementById('loading').style.display   = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+function onError(e) {
+  document.getElementById('loading').style.display = 'none';
+  const el = document.getElementById('error-msg');
+  el.style.display = 'block';
+  el.innerHTML = 'Data server is warming up — <button onclick="location.reload()" style="background:none;border:1px solid #fca5a5;color:#fca5a5;padding:2px 10px;border-radius:6px;cursor:pointer;font-size:12px">Retry</button>';
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+function populateFilters(fo) {
+  const add = (id, items) => {
+    const el = document.getElementById(id);
+    items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value       = typeof item === 'object' ? item.value : item;
+      opt.textContent = typeof item === 'object' ? item.label : item.replace(/^\w/, c => c.toUpperCase());
+      el.appendChild(opt);
+    });
+  };
+  add('f-year',     fo.years);
+  add('f-month',    fo.months);
+  add('f-platform', fo.platforms);
+  add('f-campaign', fo.campaigns);
+}
+
+function getFilters() {
+  return {
+    year:     document.getElementById('f-year').value,
+    month:    document.getElementById('f-month').value,
+    platform: document.getElementById('f-platform').value,
+    campaign: document.getElementById('f-campaign').value,
+  };
+}
+
+function applyFilters() { render(); }
+
+function resetFilters() {
+  ['f-year','f-month','f-platform','f-campaign'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  render();
+}
+
+function filteredRows() {
+  const f = getFilters();
+  return allRows.filter(r =>
+    (!f.year     || r.yr       === f.year)     &&
+    (!f.month    || r.mo       === f.month)    &&
+    (!f.platform || r.platform === f.platform) &&
+    (!f.campaign || r.campaign === f.campaign)
+  );
+}
+
+// ── Platform helpers ──────────────────────────────────────────────────────────
+const PLATFORM_ICONS = {
+  instagram: '📸', tiktok: '🎵', google: '🔍', email: '📧',
+  facebook: '📘', twitter: '🐦', x: '🐦', pinterest: '📌',
+  youtube: '🎬', direct: '🔗', organic: '🌿', referral: '🔁',
+};
+
+function platformIcon(p) {
+  return PLATFORM_ICONS[p.toLowerCase()] || '📊';
+}
+
+function platformLabel(p) {
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const rows = filteredRows();
+  const sc   = SCHEMES[currentScheme];
+
+  // Aggregate totals
+  let totRevenue = 0, totSessions = 0, totOrders = 0, totBounces = 0;
+  rows.forEach(r => {
+    totRevenue  += r.revenue;
+    totSessions += r.sessions;
+    totOrders   += r.orders;
+    totBounces  += r.bounces;
+  });
+
+  const cvr = totSessions > 0 ? totOrders   / totSessions * 100 : 0;
+  const aov = totOrders   > 0 ? totRevenue  / totOrders         : 0;
+
+  // KPIs
+  document.getElementById('kpi-revenue').textContent  = fmt$(totRevenue);
+  document.getElementById('kpi-sessions').textContent = fmtN(totSessions);
+  document.getElementById('kpi-orders').textContent   = fmtN(totOrders);
+  document.getElementById('kpi-cvr').textContent      = cvr.toFixed(1) + '%';
+  document.getElementById('kpi-aov').textContent      = fmt$(aov);
+
+  // Per-platform aggregation
+  const platMap = {};
+  rows.forEach(r => {
+    if (!platMap[r.platform]) platMap[r.platform] = { sessions:0, orders:0, revenue:0, bounces:0 };
+    platMap[r.platform].sessions += r.sessions;
+    platMap[r.platform].orders   += r.orders;
+    platMap[r.platform].revenue  += r.revenue;
+    platMap[r.platform].bounces  += r.bounces;
+  });
+
+  const platEntries = Object.entries(platMap).sort(([,a],[,b]) => b.revenue - a.revenue);
+
+  // Top platform KPI
+  if (platEntries.length > 0) {
+    const [topName, topData] = platEntries[0];
+    document.getElementById('kpi-top').textContent     = platformLabel(topName);
+    document.getElementById('kpi-top-sub').textContent = fmt$(topData.revenue) + ' revenue';
+  }
+
+  // ── Platform cards ──────────────────────────────────────────
+  const cardsEl = document.getElementById('platform-cards');
+  cardsEl.innerHTML = '';
+  platEntries.forEach(([name, d], i) => {
+    const pCvr    = d.sessions > 0 ? (d.orders / d.sessions * 100).toFixed(1) : '0.0';
+    const pAov    = d.orders   > 0 ? fmt$(d.revenue / d.orders) : '—';
+    const color   = sc.palette[i % sc.palette.length];
+    const color2  = sc.palette[(i + 1) % sc.palette.length];
+    const pct     = totRevenue > 0 ? (d.revenue / totRevenue * 100).toFixed(1) : '0.0';
+
+    const card = document.createElement('div');
+    card.className = 'platform-card';
+    card.style.setProperty('--card-color', color);
+    card.innerHTML = `
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${color},${color2})"></div>
+      <div class="platform-card-header">
+        <span class="platform-icon">${platformIcon(name)}</span>
+        <span class="platform-name">${platformLabel(name)}</span>
+      </div>
+      <div class="platform-stat primary">
+        <div class="platform-stat-label">Revenue</div>
+        <div class="platform-stat-value" style="color:${color}">${fmt$(d.revenue)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div class="platform-stat">
+          <div class="platform-stat-label">Sessions</div>
+          <div class="platform-stat-value">${fmtN(d.sessions)}</div>
+        </div>
+        <div class="platform-stat">
+          <div class="platform-stat-label">Orders</div>
+          <div class="platform-stat-value">${fmtN(d.orders)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <span class="platform-cvr" style="color:${color};border-color:${color}33">${pCvr}% CVR</span>
+        <span class="platform-cvr" style="color:${color2};border-color:${color2}33">${pct}% share</span>
+      </div>
+    `;
+    cardsEl.appendChild(card);
+  });
+
+  // ── Revenue trend by platform (stacked bar) ─────────────────
+  const monthPlatMap = {};
+  rows.forEach(r => {
+    if (!r.mKey) return;
+    if (!monthPlatMap[r.mKey]) monthPlatMap[r.mKey] = { label: r.mLabel };
+    if (!monthPlatMap[r.mKey][r.platform]) monthPlatMap[r.mKey][r.platform] = 0;
+    monthPlatMap[r.mKey][r.platform] += r.revenue;
+  });
+  const sortedMonths = Object.entries(monthPlatMap).sort(([a],[b]) => a.localeCompare(b));
+  const monthLabels  = sortedMonths.map(([,v]) => v.label);
+  const allPlatforms = platEntries.map(([name]) => name);
+
+  renderChart('chart-trend', 'bar', monthLabels,
+    allPlatforms.map((p, i) => ({
+      label: platformLabel(p),
+      data:  sortedMonths.map(([,v]) => +(v[p] || 0).toFixed(2)),
+      backgroundColor: hexAlpha(sc.palette[i % sc.palette.length], .75),
+      borderColor:     sc.palette[i % sc.palette.length],
+      borderWidth: 1, borderRadius: 3, stack: 'revenue',
+    })),
+    { stacked: true, yLabel: 'Revenue ($)' }
+  );
+
+  // ── Revenue mix donut ────────────────────────────────────────
+  renderChart('chart-mix', 'doughnut',
+    platEntries.map(([name]) => platformLabel(name)),
+    [{ data: platEntries.map(([,d]) => +d.revenue.toFixed(2)),
+       backgroundColor: platEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .85)),
+       borderColor:     platEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       borderWidth: 2, hoverOffset: 8 }],
+    {}
+  );
+
+  // ── CVR by platform ──────────────────────────────────────────
+  const cvrEntries = platEntries
+    .map(([name, d]) => [name, d.sessions > 0 ? d.orders / d.sessions * 100 : 0])
+    .sort(([,a],[,b]) => b - a);
+
+  renderChart('chart-cvr', 'bar',
+    cvrEntries.map(([name]) => platformLabel(name)),
+    [{ label: 'Conv. Rate %',
+       data: cvrEntries.map(([,v]) => +v.toFixed(2)),
+       backgroundColor: cvrEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .75)),
+       borderColor:     cvrEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       borderWidth: 1.5, borderRadius: 6 }],
+    { indexAxis: 'y', yLabel: 'Conv. Rate (%)' }
+  );
+
+  // ── AOV by platform ──────────────────────────────────────────
+  const aovEntries = platEntries
+    .map(([name, d]) => [name, d.orders > 0 ? d.revenue / d.orders : 0])
+    .sort(([,a],[,b]) => b - a);
+
+  renderChart('chart-aov', 'bar',
+    aovEntries.map(([name]) => platformLabel(name)),
+    [{ label: 'Avg Order Value',
+       data: aovEntries.map(([,v]) => +v.toFixed(2)),
+       backgroundColor: aovEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .75)),
+       borderColor:     aovEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       borderWidth: 1.5, borderRadius: 6 }],
+    { indexAxis: 'y', yLabel: 'AOV ($)' }
+  );
+
+  // ── Top campaigns ────────────────────────────────────────────
+  const campMap = {};
+  rows.forEach(r => {
+    if (r.campaign === '(none)') return;
+    if (!campMap[r.campaign]) campMap[r.campaign] = 0;
+    campMap[r.campaign] += r.revenue;
+  });
+  const campEntries = Object.entries(campMap).sort(([,a],[,b]) => b - a).slice(0, 10);
+
+  renderChart('chart-campaigns', 'bar',
+    campEntries.map(([k]) => k),
+    [{ label: 'Revenue',
+       data: campEntries.map(([,v]) => +v.toFixed(2)),
+       backgroundColor: campEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .75)),
+       borderColor:     campEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       borderWidth: 1.5, borderRadius: 6 }],
+    { indexAxis: 'y', yLabel: 'Revenue ($)' }
+  );
+}
+
+// ── Chart renderer ────────────────────────────────────────────────────────────
+function renderChart(id, type, labels, datasets, opts = {}) {
+  const isDark    = document.documentElement.getAttribute('data-theme') !== 'light';
+  const textColor = isDark ? '#a7b1d6' : '#5c6690';
+  const gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+
+  const ctx        = document.getElementById(id).getContext('2d');
+  const isDoughnut = type === 'doughnut';
+  const scaleBase  = { ticks: { color: textColor, font: { size: 11 } }, grid: { color: gridColor } };
+
+  let scales = {};
+  if (!isDoughnut) {
+    if (opts.indexAxis === 'y') {
+      scales = {
+        x: { ...scaleBase, beginAtZero: true,
+             title: { display: !!opts.yLabel, text: opts.yLabel || '', color: textColor, font: { size: 11 } } },
+        y: { ...scaleBase },
+      };
+    } else {
+      scales = {
+        x: { ...scaleBase, stacked: !!opts.stacked },
+        y: { ...scaleBase, beginAtZero: true, stacked: !!opts.stacked,
+             title: { display: !!opts.yLabel, text: opts.yLabel || '', color: textColor, font: { size: 11 } } },
+      };
+    }
+  }
+
+  charts[id] = new Chart(ctx, {
+    type,
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: opts.indexAxis || 'x',
+      animation: { duration: 350 },
+      plugins: {
+        legend: {
+          display: isDoughnut || (datasets.length > 1),
+          labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 12 },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.y ?? ctx.parsed.x ?? ctx.parsed;
+              const lbl = ctx.dataset.label || '';
+              if (typeof v === 'number') {
+                if (lbl.toLowerCase().includes('revenue') || lbl.toLowerCase().includes('aov') || lbl.toLowerCase().includes('value'))
+                  return ` ${lbl}: ${fmt$(v)}`;
+                if (lbl.toLowerCase().includes('rate') || lbl.toLowerCase().includes('cvr'))
+                  return ` ${lbl}: ${v.toFixed(1)}%`;
+              }
+              return ` ${lbl}: ${fmtN(v)}`;
+            }
+          }
+        },
+      },
+      scales,
+    },
+  });
+}
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+function fmt$(v) {
+  if (v >= 1000000) return '$' + (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return '$' + (v/1000).toFixed(1) + 'K';
+  return '$' + v.toFixed(2);
+}
+function fmtN(v) {
+  if (v >= 1000000) return (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return (v/1000).toFixed(1) + 'K';
+  return String(Math.round(v));
+}
+function hexAlpha(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ── Colour schemes ────────────────────────────────────────────────────────────
+const SCHEMES = {
+  creator: { c1:'#a855f7', c2:'#06b6d4', c3:'#10b981',
+    palette:['#a855f7','#06b6d4','#10b981','#7c3aed','#22d3ee','#34d399','#8b5cf6','#67e8f9','#6ee7b7','#c084fc'] },
+  slate:   { c1:'#94a3b8', c2:'#64748b', c3:'#78909c',
+    palette:['#94a3b8','#64748b','#78909c','#b0bec5','#546e7a','#90a4ae','#607d8b','#cfd8dc','#9badb8','#b0c4cf'] },
+  ocean:   { c1:'#0ea5e9', c2:'#22d3ee', c3:'#38bdf8',
+    palette:['#0ea5e9','#22d3ee','#38bdf8','#0284c7','#7dd3fc','#60a5fa','#93c5fd','#bae6fd','#0369a1','#075985'] },
+  sunset:  { c1:'#f97316', c2:'#ec4899', c3:'#f59e0b',
+    palette:['#f97316','#ec4899','#f59e0b','#fb923c','#f472b6','#fbbf24','#fdba74','#f9a8d4','#fde68a','#fed7aa'] },
+  forest:  { c1:'#10b981', c2:'#34d399', c3:'#6ee7b7',
+    palette:['#10b981','#34d399','#6ee7b7','#059669','#14b8a6','#4ade80','#2dd4bf','#86efac','#5eead4','#a7f3d0'] },
+  rose:    { c1:'#e879f9', c2:'#a855f7', c3:'#818cf8',
+    palette:['#e879f9','#a855f7','#818cf8','#f0abfc','#c084fc','#a5b4fc','#f9a8d4','#d8b4fe','#c7d2fe','#ddd6fe'] },
+};
+let currentScheme = 'creator';
+
+function setScheme(scheme, btn) {
+  currentScheme = scheme in SCHEMES ? scheme : 'creator';
+  document.querySelectorAll('.scheme-pill').forEach(p => p.classList.remove('active'));
+  const target = btn || document.querySelector(`[data-scheme="${currentScheme}"]`);
+  if (target) target.classList.add('active');
+  const html = document.documentElement;
+  html.className = html.className.replace(/\bscheme-\w+/g, '').trim();
+  html.classList.add('scheme-' + currentScheme);
+  const sc = SCHEMES[currentScheme];
+  let bgEl = document.getElementById('scheme-bg-style');
+  if (!bgEl) { bgEl = document.createElement('style'); bgEl.id = 'scheme-bg-style'; document.head.appendChild(bgEl); }
+  const isDark = html.getAttribute('data-theme') !== 'light';
+  bgEl.textContent = isDark
+    ? `body{background:radial-gradient(1200px 700px at 15% 0%,${hexAlpha(sc.c1,.18)},transparent 60%),radial-gradient(900px 600px at 85% 5%,${hexAlpha(sc.c2,.12)},transparent 55%),var(--bg)!important}`
+    : `body{background:radial-gradient(1200px 700px at 15% 0%,${hexAlpha(sc.c1,.10)},transparent 60%),radial-gradient(900px 600px at 85% 5%,${hexAlpha(sc.c2,.07)},transparent 55%),var(--bg)!important}`;
+  localStorage.setItem('xplat-scheme', currentScheme);
+  if (allRows.length > 0) render();
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+const STORAGE_KEY_THEME = 'xplat-theme';
+function _applyTheme(t) { document.documentElement.setAttribute('data-theme', t); }
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  _applyTheme(next);
+  localStorage.setItem(STORAGE_KEY_THEME, next);
+  setScheme(currentScheme);
+  if (allRows.length > 0) render();
+}
+</script>
+</body>
+</html>
