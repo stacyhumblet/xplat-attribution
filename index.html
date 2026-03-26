@@ -469,7 +469,7 @@ function transformGA4XPlat(raw) {
       sessions: row.sessions     || 0,
       orders:   row.transactions || 0,
       revenue:  row.revenue      || 0,
-      bounces:  0,  // bounceRate not fetched by worker yet
+      bounces:  Math.round((row.sessions || 0) * parseFloat(row.bounce_rate || 0)),
       platform: getPlatform(row.source, row.medium),
       campaign: row.campaign     || '(none)',
       yr, mo, mKey, mLabel,
