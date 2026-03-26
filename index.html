@@ -1,3 +1,9 @@
+<!--
+  Copyright © 2026 Northwind Pulse™. All rights reserved.
+  Unauthorized copying, reverse engineering, redistribution,
+  or reproduction of this software is strictly prohibited.
+  https://northwind-pulse.com/terms.html
+-->
 <!DOCTYPE html>
 <html>
 <head>
@@ -406,11 +412,9 @@
 
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
-const STORAGE_KEY    = 'xplat-theme';
-const API_URL        = 'https://script.google.com/macros/s/AKfycbzqIV5Sq0w0NO67UQdDKiWsc-g52RM48NrqM2yiJCqdSnbMWTQTThAvmlxlzfpl52P9/exec';
-const DATA_CACHE_KEY = 'xplat-data-cache';
-const DATA_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-const FETCH_TIMEOUT  = 8000;
+const STORAGE_KEY = 'xplat-theme';
+const WORKER_URL  = 'https://northwind-data-worker.northwindconsultinginc.workers.dev';
+const CLIENT_ID   = 'demo';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let allRows = [];
@@ -423,39 +427,61 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedScheme = localStorage.getItem('xplat-scheme') || 'creator';
   setScheme(savedScheme);
 
-  const raw = localStorage.getItem(DATA_CACHE_KEY);
-  if (raw) {
-    try {
-      const { ts, data } = JSON.parse(raw);
-      if (Date.now() - ts < DATA_CACHE_TTL) {
-        onData(data);
-        refreshInBackground();
-        return;
-      }
-    } catch(e) {}
-  }
-
-  fetchWithTimeout(API_URL, FETCH_TIMEOUT)
-    .then(r => r.json())
-    .then(data => { saveCache(data); onData(data); })
+  fetch(`${WORKER_URL}/data/${CLIENT_ID}/ga4`)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(raw => onData(transformGA4XPlat(raw)))
     .catch(onError);
 });
 
-function fetchWithTimeout(url, ms) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
-}
+// ── Transform: GA4 KV → cross-platform rows ───────────────────────────────────
+// Maps GA4 source/medium dimensions to named platforms.
+// Field notes:
+//   r.bounces: ❌ bounceRate metric not currently fetched — add to worker to enable
+//   r.platform: derived from source/medium — not a native GA4 dimension ✅ (calculated)
+function transformGA4XPlat(raw) {
+  const traffic = raw.traffic || [];
+  const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function saveCache(data) {
-  try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
-}
+  function getPlatform(source, medium) {
+    const s = (source || '').toLowerCase();
+    const m = (medium || '').toLowerCase();
+    if (s.includes('instagram') || s === 'ig') return 'instagram';
+    if (s.includes('tiktok')    || s === 'tt') return 'tiktok';
+    if (s.includes('facebook')  || s === 'fb') return 'facebook';
+    if (s.includes('pinterest'))               return 'pinterest';
+    if (s.includes('youtube'))                 return 'youtube';
+    if (s.includes('google') || m === 'cpc' || m === 'ppc') return 'google';
+    if (m === 'email' || m === 'email marketing' || s.includes('klaviyo') || s.includes('mailchimp')) return 'email';
+    if (s === '(direct)' || m === '(none)' || s === 'direct') return 'direct';
+    if (m === 'organic' || m === 'organic search') return 'organic';
+    if (m === 'referral') return 'referral';
+    return s || 'other';
+  }
 
-function refreshInBackground() {
-  fetchWithTimeout(API_URL, 15000)
-    .then(r => r.json())
-    .then(data => { saveCache(data); onData(data); })
-    .catch(() => {});
+  const rows = [];
+  traffic.forEach(row => {
+    const d      = new Date(row.date);
+    const yr     = String(d.getFullYear());
+    const mo     = String(d.getMonth() + 1).padStart(2, '0');
+    const mKey   = yr + '-' + mo;
+    const mLabel = MONTHS[d.getMonth()] + ' ' + yr;
+    rows.push({
+      sessions: row.sessions     || 0,
+      orders:   row.transactions || 0,
+      revenue:  row.revenue      || 0,
+      bounces:  0,  // bounceRate not fetched by worker yet
+      platform: getPlatform(row.source, row.medium),
+      campaign: row.campaign     || '(none)',
+      yr, mo, mKey, mLabel,
+    });
+  });
+
+  const uniq = (arr) => [...new Set(arr)].sort();
+  const years     = uniq(rows.map(r => r.yr));
+  const months    = uniq(rows.map(r => r.mo)).map(m => ({ value: m, label: MONTHS[parseInt(m) - 1] }));
+  const platforms = uniq(rows.map(r => r.platform));
+  const campaigns = uniq(rows.map(r => r.campaign)).filter(c => c !== '(none)');
+  return { rows, fo: { years, months, platforms, campaigns } };
 }
 
 function onData(data) {
@@ -800,5 +826,9 @@ function toggleTheme() {
   if (allRows.length > 0) render();
 }
 </script>
+<footer style="text-align:center;padding:24px 16px 16px;font-size:0.75rem;color:rgba(255,255,255,0.28);border-top:1px solid rgba(255,255,255,0.06);margin-top:48px;">
+  &copy; 2026 Northwind Pulse™. All rights reserved. &nbsp;&middot;&nbsp;
+  <a href="https://northwind-pulse.com/terms.html" style="color:rgba(255,255,255,0.35);text-decoration:underline;" target="_blank">Terms of Service</a>
+</footer>
 </body>
 </html>
