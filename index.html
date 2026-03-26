@@ -468,7 +468,7 @@ function transformGA4XPlat(raw) {
     rows.push({
       sessions: row.sessions     || 0,
       orders:   row.transactions || 0,
-      revenue:  row.revenue      || 0,
+      revenue:  parseFloat(row.revenue) || 0,
       bounces:  Math.round((row.sessions || 0) * parseFloat(row.bounce_rate || 0)),
       platform: getPlatform(row.source, row.medium),
       campaign: row.campaign     || '(none)',
@@ -825,6 +825,13 @@ function toggleTheme() {
   setScheme(currentScheme);
   if (allRows.length > 0) render();
 }
+
+// ── Cross-frame theme control (Northwind Tools Suite) ─────────────────────────
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'nwp-theme') return;
+  if (e.data.scheme) setScheme(e.data.scheme);
+  if (e.data.mode) { _applyTheme(e.data.mode); setScheme(currentScheme); if (allRows.length > 0) render(); }
+});
 </script>
 <footer style="text-align:center;padding:24px 16px 16px;font-size:0.75rem;color:rgba(255,255,255,0.28);border-top:1px solid rgba(255,255,255,0.06);margin-top:48px;">
   &copy; 2026 Northwind Pulse™. All rights reserved. &nbsp;&middot;&nbsp;
