@@ -117,7 +117,7 @@
     [data-theme="light"] .toggle-thumb { transform:translateX(16px); }
 
     /* ── Layout ─────────────────────────────────────────────── */
-    .container { max-width:1400px; margin:0 auto; padding:24px 20px; }
+    .container { max-width:1400px; margin:0 auto; padding:12px 16px; }
     .section-label {
       font-size:10px; font-weight:700; letter-spacing:.8px;
       text-transform:uppercase; color:var(--muted); margin:20px 0 10px;
@@ -218,7 +218,8 @@
     }
     #error-msg {
       display:none; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3);
-      color:#fca5a5; padding:16px 20px; border-radius:12px; font-size:13px; margin:20px 0;
+      color:#fca5a5; padding:16px 20px; border-radius:12px; font-size:13px;
+      margin:12px auto; max-width:min(1400px,calc(100% - 32px));
     }
   </style>
 </head>
@@ -300,7 +301,7 @@
 </div>
 
 <!-- Error -->
-<div class="container"><div id="error-msg"></div></div>
+<div id="error-msg"></div>
 
 <!-- Dashboard -->
 <div id="dashboard">
