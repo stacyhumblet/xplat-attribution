@@ -816,7 +816,10 @@ function setScheme(scheme, btn) {
 }
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────
-function _applyTheme(t) { document.documentElement.setAttribute('data-theme', t); }
+function _applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  window.parent.postMessage({ type: 'nwp-sidebar-theme', mode: t }, '*');
+}
 function toggleTheme() {
   const cur  = document.documentElement.getAttribute('data-theme');
   const next = cur === 'light' ? 'dark' : 'light';
