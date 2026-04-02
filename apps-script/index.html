@@ -158,6 +158,81 @@
       border-radius:14px; padding:16px;
     }
     .kpi-label { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+    .info-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 0 0 0 4px;
+      line-height: 1;
+      opacity: 0.7;
+      transition: opacity .15s, color .15s;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+    .info-btn:hover { opacity: 1; color: var(--primary); }
+    .kpi-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .kpi-modal-overlay.open { display: flex; }
+    .kpi-modal {
+      background: #111827;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px;
+      padding: 24px 28px;
+      max-width: 420px;
+      width: calc(100% - 40px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+      position: relative;
+    }
+    [data-theme="light"] .kpi-modal {
+      background: #ffffff;
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    }
+    .kpi-modal-close {
+      position: absolute;
+      top: 12px; right: 16px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+    }
+    .kpi-modal-close:hover { color: var(--text); }
+    .kpi-modal-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 14px;
+      padding-right: 24px;
+    }
+    .kpi-modal-section { margin-bottom: 12px; }
+    .kpi-modal-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .kpi-modal-section-body {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+    [data-theme="light"] .kpi-modal { color: #1a2142; }
+    [data-theme="light"] .kpi-modal-section-body { color: #1a2142; }
     .kpi-value { font-size:22px; font-weight:800; line-height:1; }
     .kpi-sub   { font-size:11px; color:var(--muted); margin-top:4px; }
     .kpi-pill .kpi-value       { color:var(--primary); }
@@ -415,7 +490,7 @@
     <div class="section-label">Performance Overview</div>
     <div class="kpi-row">
       <div class="kpi-pill highlight">
-        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-label">Total Revenue <button class="info-btn" onclick="showKpiInfo('revenue')">ⓘ</button></div>
         <div class="kpi-value" id="kpi-revenue">—</div>
         <div class="kpi-sub">All platforms</div>
         <div class="target-bar-wrap" id="revenue-bar-wrap">
@@ -425,7 +500,7 @@
         <div class="pace-badge" id="pace-revenue"></div>
       </div>
       <div class="kpi-pill">
-        <div class="kpi-label">Total Sessions</div>
+        <div class="kpi-label">Total Sessions <button class="info-btn" onclick="showKpiInfo('sessions')">ⓘ</button></div>
         <div class="kpi-value" id="kpi-sessions">—</div>
         <div class="kpi-sub">Unique visits</div>
         <div class="target-bar-wrap" id="sessions-bar-wrap">
@@ -435,23 +510,23 @@
         <div class="pace-badge" id="pace-sessions"></div>
       </div>
       <div class="kpi-pill">
-        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-label">Total Orders <button class="info-btn" onclick="showKpiInfo('orders')">ⓘ</button></div>
         <div class="kpi-value" id="kpi-orders">—</div>
         <div class="kpi-sub">Conversions</div>
       </div>
       <div class="kpi-pill accent">
-        <div class="kpi-label">Avg Conv. Rate</div>
+        <div class="kpi-label">Avg Conv. Rate <button class="info-btn" onclick="showKpiInfo('cvr')">ⓘ</button></div>
         <div class="kpi-value" id="kpi-cvr">—</div>
         <div class="kpi-sub">Sessions → orders</div>
         <div class="pace-badge" id="pace-cvr"></div>
       </div>
       <div class="kpi-pill">
-        <div class="kpi-label">Avg Order Value</div>
+        <div class="kpi-label">Avg Order Value <button class="info-btn" onclick="showKpiInfo('aov')">ⓘ</button></div>
         <div class="kpi-value" id="kpi-aov">—</div>
         <div class="kpi-sub">Revenue / orders</div>
       </div>
       <div class="kpi-pill accent">
-        <div class="kpi-label">Top Platform</div>
+        <div class="kpi-label">Top Platform <button class="info-btn" onclick="showKpiInfo('top-platform')">ⓘ</button></div>
         <div class="kpi-value" id="kpi-top" style="font-size:15px;text-transform:capitalize">—</div>
         <div class="kpi-sub" id="kpi-top-sub">By revenue</div>
       </div>
@@ -1094,5 +1169,43 @@ function toggleTheme() {
   if (allRows.length > 0) render();
 }
 </script>
+
+    <div class="kpi-modal-overlay" id="kpiModal" onclick="hideKpiInfo()">
+      <div class="kpi-modal" onclick="event.stopPropagation()">
+        <button class="kpi-modal-close" onclick="hideKpiInfo()">×</button>
+        <div class="kpi-modal-title" id="kpiModalTitle"></div>
+        <div id="kpiModalBody"></div>
+      </div>
+    </div>
+
+    <script>
+    const KPI_INFO = {
+      'revenue':      { title: 'Total Revenue',          def: 'Combined revenue attributed across all tracked channels — Instagram, TikTok, Google, email, and any other source. Each dollar is assigned to the channel that last touched the customer before purchase.',                                                                   benchmark: 'Revenue benchmarks depend on your stage. Focus on the channel mix: healthy ecomm businesses are rarely dependent on a single channel. Diversification across 3+ sources reduces risk.',                                                                                                             action: 'If one channel dominates revenue, that is a dependency risk. Invest in building at least one or two secondary channels so a single platform change does not devastate your business.' },
+      'sessions':     { title: 'Total Sessions',         def: 'Total website visits across all tracked sources in the selected period. Includes organic social, paid social, search, email, and direct traffic.',                                                                                                                         benchmark: 'Session volume depends on your marketing activity. More important than volume is the trend — consistent growth in sessions week over week or month over month is the signal to watch.',                                                                                                              action: 'If sessions are declining, identify which specific channel is dropping and diagnose that channel. A blanket session decline usually points to either reduced posting frequency or an algorithm change on a key platform.' },
+      'orders':       { title: 'Total Orders',           def: 'Total number of completed purchases across all attributed channels. This is your headline conversion count for the period.',                                                                                                                                               benchmark: 'Order count benchmarks vary widely. The key ratio to track is orders per 100 sessions (your sitewide CVR). Healthy ecomm: 1-3 orders per 100 sessions.',                                                                                                                                           action: 'If orders are declining but sessions are stable, the issue is conversion — your traffic quality or on-site experience has shifted. If both are down, start with top-of-funnel traffic recovery.' },
+      'cvr':          { title: 'Avg Conversion Rate',   def: 'Average conversion rate across all channels: the percentage of total sessions that resulted in a purchase. This is a blended rate — individual channels will vary significantly.',                                                                                          benchmark: 'Blended ecommerce CVR: 1-3% is healthy. Email traffic typically converts at 3-5%. Social traffic at 1-2%. Paid search often at 2-4%. If your blended rate is under 1%, there is likely a site or product issue.',                                                                                 action: 'Drill into per-channel CVR using the platform breakdown below. A low blended rate often means one underperforming channel is dragging down the average. Fix the worst performer first.' },
+      'aov':          { title: 'Avg Order Value',        def: 'Average revenue per order across all channels. Different channels often drive different AOV — email subscribers tend to buy more, social traffic tends to buy less.',                                                                                                      benchmark: 'Boutique/fashion AOV typically runs $45-$85. If your cross-platform AOV is below this, look at whether low-AOV channels (like social) dominate your order mix.',                                                                                                                                   action: 'To raise blended AOV: focus upsell efforts on your highest-volume channels, add bundling options, and set a free shipping threshold above your current AOV to nudge customers toward larger carts.' },
+      'top-platform': { title: 'Top Platform by Revenue', def: 'The channel that drove the most revenue in the selected period, based on last-touch attribution. This is a quick pulse check on which source is currently your most valuable.',                                                                                          benchmark: 'For boutiques with an active social presence, Instagram and email tend to lead early. TikTok can spike dramatically when content goes viral. Google becomes more important as brand awareness grows and customers search by name.',                                                                    action: 'Do not over-optimize for only your top platform. If Instagram dominates and Instagram reach drops, your revenue will too. Use this metric to spot when a new channel is rising — that is your signal to invest there.' },
+    };
+
+    function showKpiInfo(key) {
+      const d = KPI_INFO[key];
+      if (!d) return;
+      document.getElementById('kpiModalTitle').textContent = d.title;
+      document.getElementById('kpiModalBody').innerHTML =
+        '<div class="kpi-modal-section"><div class="kpi-modal-section-label">What it is</div><div class="kpi-modal-section-body">' + d.def + '</div></div>' +
+        '<div class="kpi-modal-section"><div class="kpi-modal-section-label">Industry benchmark</div><div class="kpi-modal-section-body">' + d.benchmark + '</div></div>' +
+        '<div class="kpi-modal-section"><div class="kpi-modal-section-label">What to do</div><div class="kpi-modal-section-body">' + d.action + '</div></div>';
+      document.getElementById('kpiModal').classList.add('open');
+    }
+
+    function hideKpiInfo() {
+      document.getElementById('kpiModal').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') hideKpiInfo();
+    });
+    </script>
 </body>
 </html>
