@@ -1107,11 +1107,13 @@ function renderChart(id, type, labels, datasets, opts = {}) {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmt$(v) {
+  if (!isFinite(v) || isNaN(v)) return '—';
   if (v >= 1000000) return '$' + (v/1000000).toFixed(1) + 'M';
   if (v >= 1000)    return '$' + (v/1000).toFixed(1) + 'K';
   return '$' + v.toFixed(2);
 }
 function fmtN(v) {
+  if (!isFinite(v) || isNaN(v)) return '—';
   if (v >= 1000000) return (v/1000000).toFixed(1) + 'M';
   if (v >= 1000)    return (v/1000).toFixed(1) + 'K';
   return String(Math.round(v));
