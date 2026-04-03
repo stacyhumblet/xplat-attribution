@@ -954,8 +954,8 @@ function render() {
   const platDatasets = allPlatforms.map((p, i) => ({
     label: platformLabel(p),
     data:  sortedMonths.map(([,v]) => +(v[p] || 0).toFixed(2)),
-    backgroundColor: hexAlpha(sc.palette[i % sc.palette.length], .75),
-    borderColor:     sc.palette[i % sc.palette.length],
+    backgroundColor: hexAlpha(i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length], .75),
+    borderColor:     i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length],
     borderWidth: 1, borderRadius: 3, stack: 'revenue',
   }));
 
@@ -987,8 +987,8 @@ function render() {
   renderChart('chart-mix', 'doughnut',
     platEntries.map(([name]) => platformLabel(name)),
     [{ data: platEntries.map(([,d]) => +d.revenue.toFixed(2)),
-       backgroundColor: platEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .85)),
-       borderColor:     platEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       backgroundColor: platEntries.map((_, i) => hexAlpha(i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length], .85)),
+       borderColor:     platEntries.map((_, i) => i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length]),
        borderWidth: 2, hoverOffset: 8 }],
     {}
   );
@@ -1002,8 +1002,8 @@ function render() {
     cvrEntries.map(([name]) => platformLabel(name)),
     [{ label: 'Conv. Rate %',
        data: cvrEntries.map(([,v]) => +v.toFixed(2)),
-       backgroundColor: cvrEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .75)),
-       borderColor:     cvrEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       backgroundColor: cvrEntries.map((_, i) => hexAlpha(i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length], .75)),
+       borderColor:     cvrEntries.map((_, i) => i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length]),
        borderWidth: 1.5, borderRadius: 6 }],
     { indexAxis: 'y', yLabel: 'Conv. Rate (%)' }
   );
@@ -1017,8 +1017,8 @@ function render() {
     aovEntries.map(([name]) => platformLabel(name)),
     [{ label: 'Avg Order Value',
        data: aovEntries.map(([,v]) => +v.toFixed(2)),
-       backgroundColor: aovEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .75)),
-       borderColor:     aovEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       backgroundColor: aovEntries.map((_, i) => hexAlpha(i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length], .75)),
+       borderColor:     aovEntries.map((_, i) => i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length]),
        borderWidth: 1.5, borderRadius: 6 }],
     { indexAxis: 'y', yLabel: 'AOV ($)' }
   );
@@ -1036,8 +1036,8 @@ function render() {
     campEntries.map(([k]) => k),
     [{ label: 'Revenue',
        data: campEntries.map(([,v]) => +v.toFixed(2)),
-       backgroundColor: campEntries.map((_, i) => hexAlpha(sc.palette[i % sc.palette.length], .75)),
-       borderColor:     campEntries.map((_, i) => sc.palette[i % sc.palette.length]),
+       backgroundColor: campEntries.map((_, i) => hexAlpha(i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length], .75)),
+       borderColor:     campEntries.map((_, i) => i === 0 ? sc.c1 : NEUTRAL_PALETTE[(i - 1) % NEUTRAL_PALETTE.length]),
        borderWidth: 1.5, borderRadius: 6 }],
     { indexAxis: 'y', yLabel: 'Revenue ($)' }
   );
@@ -1138,6 +1138,7 @@ const SCHEMES = {
   rose:    { c1:'#e879f9', c2:'#a855f7', c3:'#818cf8',
     palette:['#e879f9','#a855f7','#818cf8','#f0abfc','#c084fc','#a5b4fc','#f9a8d4','#d8b4fe','#c7d2fe','#ddd6fe'] },
 };
+const NEUTRAL_PALETTE = ['#475569','#64748b','#78909c','#94a3b8','#6b7280','#9ca3af','#b0bec5','#adb5bd'];
 let currentScheme = 'creator';
 
 function setScheme(scheme, btn) {
